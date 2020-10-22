@@ -20,7 +20,6 @@ def predict(image_file):
 
     image = Image.open(image_file.name, mode='r')
 
-    scene_detect_result = scene_detect_model.get_scene_attributes(image_file)
     return {
         "Category Confidence": scene_detect_result['category_results'],
         "Scene Attributes": scene_detect_result['attributes_result'],
