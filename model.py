@@ -1,6 +1,6 @@
 import asyncio
 from PIL import Image
-
+from SceneDetection import scene_detect_model
 
 async def init():
     """
@@ -21,5 +21,6 @@ def predict(image_file):
     image = Image.open(image_file.name, mode='r')
 
     return {
-        "someResultCategory": "actualResultValue",
+        "Category Confidence": scene_detect_result['category_results'],
+        "Scene Attributes": scene_detect_result['attributes_result'],
     }
