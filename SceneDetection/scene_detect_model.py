@@ -9,7 +9,6 @@ from torch.nn import functional as F
 import os
 import sys
 import numpy as np
-from scipy.misc import imresize as imresize
 from PIL import Image
 
 import sqlite3
