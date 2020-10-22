@@ -8,7 +8,6 @@ python-multipart
 pillow
 scipy==1.1.0
 numpy==1.18.1
-tensorflow
 torch==1.4.0
 torchvision==0.5.0
 opencv-python
