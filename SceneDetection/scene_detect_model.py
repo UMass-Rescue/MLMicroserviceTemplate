@@ -41,7 +41,7 @@ class SceneDetectionModel:
         self.input_img = None
 
     # function to ensure presence of the list of scene categories
-    def download_classes():
+    def download_classes(self):
         # fetching the list of scene categories if not already present
         if not os.access(os.path.join(self.MODEL_DIRECTORY, self.CATEGORIES_FILE_NAME), os.W_OK):
             os.system('wget ' + self.CSAILVISION_URL + self.CATEGORIES_FILE_NAME + ' -P ' + self.MODEL_DIRECTORY)
@@ -56,7 +56,7 @@ class SceneDetectionModel:
 
     # function to ensure presence of the lookup table of scene category 
     # classifying as indoor or outdoor scene
-    def download_labels_indoor_outdoor():
+    def download_labels_indoor_outdoor(self):
         # fetching the lookup table given an input scene to check if its indoor or
         # outdoor 
         if not os.access(os.path.join(self.MODEL_DIRECTORY, self.INDOOR_OUTDOOR_PLACES_FILE_NAME), os.W_OK):
@@ -73,7 +73,7 @@ class SceneDetectionModel:
         return labels_indoor_outdoor
     
     # function to ensure presence of the list of scene attributes
-    def download_labels_attributes():
+    def download_labels_attributes(self):
         # fetching scene attributes if not already present
         if not os.access(os.path.join(self.MODEL_DIRECTORY, self.LABELS_SUNATTRIBUTE_FILE_NAME), os.W_OK):
             os.system('wget ' + self.CSAILVISION_URL + self.LABELS_SUNATTRIBUTE_FILE_NAME + ' -P ' + self.MODEL_DIRECTORY)
@@ -84,23 +84,23 @@ class SceneDetectionModel:
         return labels_attribute
 
     # function to ensure presence of the list of wideresnet model scene attributes
-    def download_wideresnet18_attributes():
+    def download_wideresnet18_attributes(self):
         if not os.access(os.path.join(self.MODEL_DIRECTORY, self.WIDERESNET18_SCENE_ATTRIBUTES_FILE_NAME), os.W_OK):
             os.system('wget ' + self.SCENE_ATTRIBUTE_WIDERESNET18_URL + self.WIDERESNET18_SCENE_ATTRIBUTES_FILE_NAME + ' -P ' + self.MODEL_DIRECTORY)
         W_attribute = np.load(os.path.join(self.MODEL_DIRECTORY, self.WIDERESNET18_SCENE_ATTRIBUTES_FILE_NAME))
         return W_attribute
 
     # transform the image as required by the resnet model
-    def returnTF():
+    def returnTF(self):
         tf = trn.Compose([
-            trn.Resize((self.IMG_WIDTH,self.IMG_HEIGHT)),
+            trn.Resize((self.IMG_WIDTH, self.IMG_HEIGHT)),
             trn.ToTensor(),
             trn.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
         return tf
 
     # download wideresnet18 model
-    def download_model():
+    def download_model(self):
         # fetch the pretrained weights of the model if not already present
         if not os.access(os.path.join(self.MODEL_DIRECTORY, self.WIDERESNET18_TAR_FILE_NAME), os.W_OK):
             os.system('wget ' + self.WIDERESNET18_TAR_URL + self.WIDERESNET18_TAR_FILE_NAME + ' -P ' + self.MODEL_DIRECTORY)
@@ -108,7 +108,7 @@ class SceneDetectionModel:
 
     # fetch and load the model, model specified inside the function itself and can
     # be modified to load a different model
-    def load_model(features_blobs):
+    def load_model(self, features_blobs):
         # create feature list given module, input and output
         def hook_feature(module, input, output):
             features_blobs.append(np.squeeze(output.data.cpu().numpy()))
@@ -130,21 +130,20 @@ class SceneDetectionModel:
         return model
 
     # method to load a single image into the model for prediction
-    def load_image(image_file_name):
+    def load_image(self, image_file_name):
+        tf = self.returnTF() 
         img = Image.open(image_file_name)
 
         if img.mode != 'RGB':        
             img = img.convert("RGB")
         self.input_img = V(tf(img).unsqueeze(0))
 
-    def forward_pass():
+    def forward_pass(self):
         # Common list required for hooking features later in the model
         features_blobs = []
 
         # load the model using all helper functions defined before this
-        model = load_model(features_blobs)
-
-        tf = returnTF() 
+        model = self.load_model(features_blobs)
 
         # get the softmax weight
         params = list(model.parameters())
@@ -159,12 +158,12 @@ class SceneDetectionModel:
         idx = idx.numpy()
         return idx, probs, features_blobs
 
-    def get_indoor_outdoor_prediction_from_forward_pass(idx)
+    def get_indoor_outdoor_prediction_from_forward_pass(self, idx):
         # output the indoor/outdoor prediction
         io_image = np.mean(self.labels_indoor_outdoor[idx[:10]]) # vote for the indoor or outdoor
         return 'indoor' if io_image < 0.5 else 'outdoor'
 
-    def get_scene_categories_from_forward_pass(idx, probs):
+    def get_scene_categories_from_forward_pass(self, idx, probs):
         # output the scene categories
         scene_categories_dict = {}
         for i in range(0, 5):    
@@ -172,32 +171,32 @@ class SceneDetectionModel:
         scene_categories_prob = {k: v for k, v in sorted(scene_categories_dict.items(), key=lambda item: item[1], reverse=True)}
         return scene_categories_prob
     
-    def get_scene_attributes_from_forward_pass(features_blobs):
+    def get_scene_attributes_from_forward_pass(self, features_blobs):
         # output the scene attributes
         responses_attribute = self.W_attribute.dot(features_blobs[1])
         idx_a = np.argsort(responses_attribute)
         return [self.labels_attribute[idx_a[i]] for i in range(-1,-10,-1)]
 
     # method to predict if the scene is indoor or outdoor
-    def predict_environment_type():
-        idx, _, _ = forward_pass()
+    def predict_environment_type(self):
+        idx, _, _ = self.forward_pass()
         return self.get_indoor_outdoor_prediction_from_forward_pass(idx)
 
     # method to predict the scene's categories
-    def predict_categories():
-        idx, probs, _ = forward_pass()
+    def predict_categories(self):
+        idx, probs, _ = self.forward_pass()
         return self.get_scene_categories_from_forward_pass(idx, probs)
 
     # method to predict the scene's attributes
-    def predict_scene_attributes():
-        _, _, features_blobs = forward_pass()
+    def predict_scene_attributes(self):
+        _, _, features_blobs = self.forward_pass()
         return self.get_scene_attributes_from_forward_pass(features_blobs)
 
     # the main function which given an input image predicts the scene categories,
     # scene attributes and an indoor or outdoor image using the output of the 
     # above two
-    def predict_scene():
-        idx, probs, features_blobs = forward_pass()
+    def predict_scene(self):
+        idx, probs, features_blobs = self.forward_pass()
         scene_categories_prob = self.get_scene_categories_from_forward_pass(idx, probs)
         env_type = self.get_indoor_outdoor_prediction_from_forward_pass(idx)
         scene_attributes = self.get_scene_attributes_from_forward_pass(features_blobs)
