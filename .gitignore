@@ -1,7 +1,1 @@
 .idea
-SceneDetection/W_sceneattribute_wideresnet18.npy
-.DS_Store
-__pycache__/
-SceneDetection/*.txt
-SceneDetection/wideresnet*
-SceneDetection/__pycache__/
