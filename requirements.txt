@@ -8,3 +8,8 @@ python-multipart
 pillow
 python-dotenv
 requests
+scipy
+numpy
+torch
+torchvision
+opencv-python

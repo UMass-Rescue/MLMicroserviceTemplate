@@ -1,6 +1,8 @@
 import asyncio
 from PIL import Image
+from SceneDetection.scene_detect_model import SceneDetectionModel
 
+model = None
 
 async def init():
     """
@@ -8,8 +10,10 @@ async def init():
     model needs have been created, and if not then you should create/fetch them.
     """
     await asyncio.sleep(2)
-    print('aaa')
+    global model
 
+    print('Loading SceneDetection model')
+    model = SceneDetectionModel()
 
 def predict(image_file):
     """
@@ -17,9 +21,15 @@ def predict(image_file):
     changed and your model must be able to predict given a file-like object
     with the image as an input.
     """
-
-    image = Image.open(image_file.name, mode='r')
+    global model
+    if model == None:
+        raise RuntimeError("SceneDetection model is not loaded properly")
+    
+    model.load_image(image_file.name)
+    scene_detect_result = model.predict_scene()
 
     return {
-        "someResultCategory": "actualResultValue",
+        "Category Confidence": scene_detect_result['category_results'],
+        "Scene Attributes": scene_detect_result['attributes_result'],
+        "Environment Type": scene_detect_result['environment']
     }
