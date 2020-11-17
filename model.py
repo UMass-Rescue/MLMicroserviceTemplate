@@ -23,3 +23,13 @@ def predict(image_file):
     return {
         "someResultCategory": "actualResultValue",
     }
+
+def predict_text(text_sentence):
+    """
+    Interface method between model and server. This signature must not be
+    changed and your model must be able to predict given a string as an input.
+    """
+
+    return {
+        "someResultCategory": "actualResultValue",
+    }

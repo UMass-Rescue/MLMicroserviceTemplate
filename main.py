@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import logging
 import asyncio
-from model import predict, init
+from model import predict, predict_text, init
 from pydantic import BaseSettings
 import requests
 import time
@@ -145,4 +145,26 @@ async def create_prediction(filename: str = ""):
     # Create prediction with model
     result = predict(image_file)
     image_file.close()
+    return {"result": result}
+
+
+@app.post("/predict_text")
+async def create_text_prediction(text_input: str = ""):
+    """
+    Creates a new prediction using the model. This method must be called after the init() method has run
+    at least once, otherwise this will fail with a HTTP Error. When given a text input, the server will 
+    pass that to the predict() method.
+
+    :param text_input: A string sentence we want the model to predict
+    :return: JSON with field "result" containing the results of the model prediction.
+    """
+
+    # Ensure model is ready to receive prediction requests
+    if not settings.ready_to_predict:
+        return HTTPException(status_code=503,
+                             detail="Model has not been configured. Please run initial startup before attempting to "
+                                    "receive predictions.")
+
+    # Create prediction with model
+    result = predict_text(text_input)
     return {"result": result}
