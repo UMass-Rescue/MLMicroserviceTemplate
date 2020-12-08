@@ -65,7 +65,7 @@ def register_model_to_server(server_port, model_port, model_name):
     global connected
     while not connected:
         try:
-            r = requests.post('http://host.docker.internal:' + str(server_port) + '/register', json = {"modelName": model_name, "modelPort": model_port})
+            r = requests.post('http://host.docker.internal:' + str(server_port) + '/model/register', json = {"modelName": model_name, "modelPort": model_port})
             r.raise_for_status()
             connected = True
             logger.debug('Registering to server succeeds.')
