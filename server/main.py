@@ -3,25 +3,18 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import logging
 
-from starlette.background import BackgroundTask
 from starlette.responses import JSONResponse
 
 from model import predict, init
-import requests
-import time
-from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
 import os
 
-from server.dependency import Settings, PredictionException
+from server import dependency
+from server.dependency import model_settings, PredictionException, pool
+from server.server_connection import register_model_to_server
 
-WAIT_TIME = 10
-
-settings = Settings()
 app = FastAPI()
-connected = False
-shutdown = False
-pool = ThreadPoolExecutor(10)
+
 
 # Must have CORSMiddleware to enable localhost client and server
 origins = [
@@ -54,45 +47,6 @@ async def prediction_exception_handler(request: Request, exc: PredictionExceptio
     )
 
 
-def ping_server(server_port, model_port, model_name):
-    """
-    Periodically ping the server to make sure that
-    it is active.
-    """
-    global connected
-    while connected and not shutdown:
-        try:
-            r = requests.get('http://host.docker.internal:' + str(server_port) + '/')
-            r.raise_for_status()
-            time.sleep(WAIT_TIME)
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-            connected = False
-            logger.debug("Server " + model_name + " is not responsive. Retry registering...")
-    if not shutdown:
-        register_model_to_server(server_port, model_port, model_name)
-
-
-def register_model_to_server(server_port, model_port, model_name):
-    """
-    Send notification to the server with the model name and port to register the microservice
-    It retries until a connection with the server is established
-    """
-    global connected
-    while not connected and not shutdown:
-        try:
-            r = requests.post('http://host.docker.internal:' + str(server_port) + '/model/register',
-                              json={"modelName": model_name, "modelPort": model_port})
-            r.raise_for_status()
-            connected = True
-            logger.debug('Registering to server succeeds.')
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
-            logger.debug('Registering to server fails. Retry in ' + str(WAIT_TIME) + ' seconds')
-            time.sleep(WAIT_TIME)
-            continue
-    if not shutdown:
-        ping_server(server_port, model_port, model_name)
-
-
 @app.get("/")
 async def root():
     """
@@ -116,18 +70,22 @@ def initial_startup():
 
     # Register the model to the server in a separate thread to avoid meddling with
     # initializing the service which might be used directly by other client later on
-    global background_server_connection
-    background_server_connection = pool.submit(register_model_to_server, os.getenv('SERVER_PORT'), os.getenv('PORT'), os.getenv('NAME'))
-    BackgroundTask(init)
-    return {"result": "starting"}
+    def init_model_helper():
+        logger.debug('Beginning Model Initialization Process.')
+        init()
+        model_settings.ready_to_predict = True
+        logger.debug('Finishing Model Initialization Process.')
+        pool.submit(register_model_to_server, os.getenv('SERVER_PORT'), os.getenv('PORT'), os.getenv('NAME'))
+
+    pool.submit(init_model_helper)
+    return {"status": "success", 'detail': 'server startup in progress'}
 
 
 @app.on_event('shutdown')
 def on_shutdown():
-    settings.ready_to_predict = False
-    global shutdown
-    shutdown = True
-    pool.shutdown()
+    model_settings.ready_to_predict = False
+    dependency.shutdown = True
+    pool.shutdown(wait=False)
 
     return {
         'status': 'success',
@@ -144,7 +102,7 @@ async def check_status():
     :return: {"result": "True"} if model is ready for predictions, else {"result": "False"}
     """
 
-    if not settings.ready_to_predict:
+    if not model_settings.ready_to_predict:
         raise PredictionException()
 
     return {
@@ -165,7 +123,7 @@ async def create_prediction(filename: str = ""):
     """
 
     # Ensure model is ready to receive prediction requests
-    if not settings.ready_to_predict:
+    if not model_settings.ready_to_predict:
         return HTTPException(status_code=503,
                              detail="Model has not been configured. Please run initial startup before attempting to "
                                     "receive predictions.")
@@ -181,3 +139,6 @@ async def create_prediction(filename: str = ""):
     result = predict(image_file)
     image_file.close()
     return {"result": result}
+
+
+
