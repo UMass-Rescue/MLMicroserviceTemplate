@@ -1,24 +1,26 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 import logging
-import asyncio
+
+from starlette.background import BackgroundTask
+from starlette.responses import JSONResponse
+
 from model import predict, init
-from pydantic import BaseSettings
 import requests
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
 import os
 
-class Settings(BaseSettings):
-    ready_to_predict = False
+from server.dependency import Settings, PredictionException
 
 WAIT_TIME = 10
 
 settings = Settings()
 app = FastAPI()
 connected = False
+shutdown = False
 pool = ThreadPoolExecutor(10)
 
 # Must have CORSMiddleware to enable localhost client and server
@@ -40,13 +42,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.exception_handler(PredictionException)
+async def prediction_exception_handler(request: Request, exc: PredictionException):
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "status": 'failure',
+            "detail": "Model is not ready to receive predictions."
+        },
+    )
+
+
 def ping_server(server_port, model_port, model_name):
     """
     Periodically ping the server to make sure that
     it is active.
     """
     global connected
-    while connected:
+    while connected and not shutdown:
         try:
             r = requests.get('http://host.docker.internal:' + str(server_port) + '/')
             r.raise_for_status()
@@ -54,7 +68,8 @@ def ping_server(server_port, model_port, model_name):
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
             connected = False
             logger.debug("Server " + model_name + " is not responsive. Retry registering...")
-    register_model_to_server(server_port, model_port, model_name)
+    if not shutdown:
+        register_model_to_server(server_port, model_port, model_name)
 
 
 def register_model_to_server(server_port, model_port, model_name):
@@ -63,9 +78,10 @@ def register_model_to_server(server_port, model_port, model_name):
     It retries until a connection with the server is established
     """
     global connected
-    while not connected:
+    while not connected and not shutdown:
         try:
-            r = requests.post('http://host.docker.internal:' + str(server_port) + '/model/register', json = {"modelName": model_name, "modelPort": model_port})
+            r = requests.post('http://host.docker.internal:' + str(server_port) + '/model/register',
+                              json={"modelName": model_name, "modelPort": model_port})
             r.raise_for_status()
             connected = True
             logger.debug('Registering to server succeeds.')
@@ -73,8 +89,9 @@ def register_model_to_server(server_port, model_port, model_name):
             logger.debug('Registering to server fails. Retry in ' + str(WAIT_TIME) + ' seconds')
             time.sleep(WAIT_TIME)
             continue
-    ping_server(server_port, model_port, model_name)
-    
+    if not shutdown:
+        ping_server(server_port, model_port, model_name)
+
 
 @app.get("/")
 async def root():
@@ -86,7 +103,7 @@ async def root():
 
 
 @app.on_event("startup")
-async def initial_startup():
+def initial_startup():
     """
     Calls the init() method in the model and prepares the model to receive predictions. The init
     task may take a long time to complete, so the settings field ready_to_predict will be updated
@@ -99,11 +116,23 @@ async def initial_startup():
 
     # Register the model to the server in a separate thread to avoid meddling with
     # initializing the service which might be used directly by other client later on
-    future = pool.submit(register_model_to_server, os.getenv('SERVER_PORT'), os.getenv('PORT'), os.getenv('NAME'))
-
-    init_task = asyncio.create_task(init())
-    settings.ready_to_predict = True
+    global background_server_connection
+    background_server_connection = pool.submit(register_model_to_server, os.getenv('SERVER_PORT'), os.getenv('PORT'), os.getenv('NAME'))
+    BackgroundTask(init)
     return {"result": "starting"}
+
+
+@app.on_event('shutdown')
+def on_shutdown():
+    settings.ready_to_predict = False
+    global shutdown
+    shutdown = True
+    pool.shutdown()
+
+    return {
+        'status': 'success',
+        'detail': 'Deregister complete and server shutting down.',
+    }
 
 
 @app.get("/status")
@@ -115,7 +144,13 @@ async def check_status():
     :return: {"result": "True"} if model is ready for predictions, else {"result": "False"}
     """
 
-    return {"result": str(settings.ready_to_predict)}
+    if not settings.ready_to_predict:
+        raise PredictionException()
+
+    return {
+        'status': 'success',
+        'detail': 'Model ready to receive prediction requests.'
+    }
 
 
 @app.post("/predict")
@@ -137,7 +172,7 @@ async def create_prediction(filename: str = ""):
 
     # Attempt to open image file
     try:
-        image_file = open('images/' + filename, 'r')
+        image_file = open('../images/' + filename, 'r')
     except IOError:
         return HTTPException(status_code=400,
                              detail="Unable to open image file. Provided filename can not be found on server.")
