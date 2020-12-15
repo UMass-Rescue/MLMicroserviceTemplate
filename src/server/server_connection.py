@@ -3,7 +3,7 @@ import time
 
 from fastapi.logger import logger
 
-from server import dependency
+from src.server import dependency
 
 
 def ping_server(server_port, model_port, model_name):
@@ -16,8 +16,10 @@ def ping_server(server_port, model_port, model_name):
         try:
             r = requests.get('http://host.docker.internal:' + str(server_port) + '/')
             r.raise_for_status()
-            time.sleep(dependency.WAIT_TIME)
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+            for increment in range(dependency.WAIT_TIME):
+                if not dependency.shutdown:  # Check between increments to stop hanging on shutdown
+                    time.sleep(1)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError):
             dependency.connected = False
             logger.debug("Server " + model_name + " is not responsive. Retry registering...")
     if not dependency.shutdown:
@@ -36,9 +38,10 @@ def register_model_to_server(server_port, model_port, model_name):
             r.raise_for_status()
             dependency.connected = True
             logger.debug('Registering to server succeeds.')
-        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError):
             logger.debug('Registering to server fails. Retry in ' + str(dependency.WAIT_TIME) + ' seconds')
-            time.sleep(dependency.WAIT_TIME)
-            continue
+            for increment in range(dependency.WAIT_TIME):
+                if not dependency.shutdown:  # Check between increments to stop hanging on shutdown
+                    time.sleep(1)
     if not dependency.shutdown:
         ping_server(server_port, model_port, model_name)

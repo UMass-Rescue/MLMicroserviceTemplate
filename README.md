@@ -9,9 +9,6 @@ The entire application is containerized with Docker, so the entire development a
 deployment process is portable.
 
 
-
-
-
 ## Initial Setup
 
 To run this application, there are some commands that must be run. All of these should be

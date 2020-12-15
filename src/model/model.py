@@ -7,8 +7,9 @@ def init():
     This method will be run once on startup. You should check if the supporting files your
     model needs have been created, and if not then you should create/fetch them.
     """
-    time.sleep(10)
 
+    # Placeholder init code. Replace the sleep with check for model files required etc...
+    time.sleep(1)
 
 
 def predict(image_file):

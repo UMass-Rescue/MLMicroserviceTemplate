@@ -5,13 +5,13 @@ import logging
 
 from starlette.responses import JSONResponse
 
-from model import predict, init
+from src.model.model import predict, init
 from dotenv import load_dotenv
 import os
 
-from server import dependency
-from server.dependency import model_settings, PredictionException, pool
-from server.server_connection import register_model_to_server
+from src.server import dependency
+from src.server.dependency import model_settings, PredictionException, pool
+from src.server.server_connection import register_model_to_server
 
 app = FastAPI()
 
@@ -61,15 +61,17 @@ def initial_startup():
     """
     Calls the init() method in the model and prepares the model to receive predictions. The init
     task may take a long time to complete, so the settings field ready_to_predict will be updated
-    asynchronously when init() completes.
+    asynchronously when init() completes. This will also begin the background registration task
+    to the server.
 
-    :return: {"result": "starting"}
+    :return: {"status": "success"} upon startup completion. No guarantee that init() is done processing.
     """
     # Run startup task async
     load_dotenv()
 
     # Register the model to the server in a separate thread to avoid meddling with
     # initializing the service which might be used directly by other client later on
+    # We will only run the registration once the model init is complete.
     def init_model_helper():
         logger.debug('Beginning Model Initialization Process.')
         init()
@@ -84,8 +86,9 @@ def initial_startup():
 @app.on_event('shutdown')
 def on_shutdown():
     model_settings.ready_to_predict = False
-    dependency.shutdown = True
-    pool.shutdown(wait=False)
+
+    dependency.shutdown = True  # Send shutdown signal to threads
+    pool.shutdown()  # Clear any non-processed jobs from thread queue
 
     return {
         'status': 'success',
@@ -106,7 +109,7 @@ async def check_status():
         raise PredictionException()
 
     return {
-        'status': 'success',
+        'status': 'success1',
         'detail': 'Model ready to receive prediction requests.'
     }
 
