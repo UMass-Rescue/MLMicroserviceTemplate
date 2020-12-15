@@ -127,9 +127,7 @@ async def create_prediction(filename: str = ""):
 
     # Ensure model is ready to receive prediction requests
     if not model_settings.ready_to_predict:
-        return HTTPException(status_code=503,
-                             detail="Model has not been configured. Please run initial startup before attempting to "
-                                    "receive predictions.")
+        raise PredictionException()
 
     # Attempt to open image file
     try:
