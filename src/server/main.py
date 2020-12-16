@@ -133,15 +133,24 @@ async def create_prediction(filename: str = ""):
 
     # Attempt to open image file
     try:
-        image_file = open('../images/' + filename, 'r')
+        image_file = open('src/images/' + filename, 'r')
     except IOError:
-        return HTTPException(status_code=400,
-                             detail="Unable to open image file. Provided filename can not be found on server.")
+        logger.debug('Unable to open file: ' + filename)
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "status": 'failure',
+                "detail": "Invalid file name provided: [" + filename + "]. Unable to find image on server."
+            }
+        )
 
     # Create prediction with model
     result = predict(image_file)
     image_file.close()
-    return {"result": result}
+    return {
+        'status': 'success',
+        "result": result
+    }
 
 
 
