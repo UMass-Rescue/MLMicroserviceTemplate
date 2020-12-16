@@ -1,3 +1,5 @@
+import time
+
 from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -10,7 +12,7 @@ from dotenv import load_dotenv
 import os
 
 from src.server import dependency
-from src.server.dependency import model_settings, PredictionException, pool
+from src.server.dependency import model_settings, PredictionException, pool, connected
 from src.server.server_connection import register_model_to_server
 
 app = FastAPI()
@@ -109,7 +111,7 @@ async def check_status():
         raise PredictionException()
 
     return {
-        'status': 'success1',
+        'status': 'success',
         'detail': 'Model ready to receive prediction requests.'
     }
 
