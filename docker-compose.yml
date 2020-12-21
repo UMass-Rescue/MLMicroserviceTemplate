@@ -6,7 +6,7 @@ services:
     command: uvicorn src.server.main:app --host 0.0.0.0 --port ${PORT} --debug --reload-dir /app --log-level debug
     build:
       context: ./
-      dockerfile: src/server/Dockerfile
+      dockerfile: Dockerfile
     environment:
       - GUNICORN_CMD_ARGS=--reload
     volumes:
