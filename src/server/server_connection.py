@@ -3,6 +3,7 @@ import time
 
 from fastapi.logger import logger
 
+from secrets import API_KEY
 from src.server import dependency
 
 
@@ -13,7 +14,11 @@ def register_model_to_server(server_port, model_port, model_name):
     """
     while not dependency.shutdown:
         try:
+            headers = {
+                'api_key': API_KEY
+            }
             r = requests.post('http://host.docker.internal:' + str(server_port) + '/model/register',
+                              headers=headers,
                               json={"modelName": model_name, "modelPort": model_port})
             r.raise_for_status()
             dependency.connected = True
