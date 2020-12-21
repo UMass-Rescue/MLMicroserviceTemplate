@@ -22,5 +22,9 @@ def predict(image_file):
     image = Image.open(image_file.name, mode='r')
 
     return {
-        "someResultCategory": "actualResultValue",
+        'classes': ['isGreen', 'isRed'],  # List every class in the classifier
+        'result': {  # For results, use the class names above with the result value
+            'isGreen': 0,
+            'isRed': 1
+        }
     }

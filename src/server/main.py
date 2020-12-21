@@ -134,6 +134,7 @@ async def create_prediction(filename: str = ""):
     # Attempt to open image file
     try:
         image_file = open('src/images/' + filename, 'r')
+        image_file.close()
     except IOError:
         logger.debug('Unable to open file: ' + filename)
         return JSONResponse(
@@ -146,7 +147,7 @@ async def create_prediction(filename: str = ""):
 
     # Create prediction with model
     result = predict(image_file)
-    image_file.close()
+
     return {
         'status': 'success',
         "result": result
