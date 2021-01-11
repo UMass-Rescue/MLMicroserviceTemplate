@@ -40,6 +40,18 @@ Open the file `.env` in the root directory. Change the first line from:
 `PORT=5005` to another port that you have not already used.
 
 
+#### [Configuration] Step 3 (Optional)
+You must only complete this step if the MLMicroserviceTemplate will be connected to a server.
+Open the file `secrets.py` file in the root directory. On the server, generate a new API key.
+Assuming our example API key is `abd123`, change:
+```python
+API_KEY = 'paste_your_api_key_here'
+```
+to
+```python
+API_KEY = 'abc123'
+```
+
 ### Build and Run Application
 
 Once you have configured the template, you must run these commands to build and run the model.
