@@ -11,11 +11,5 @@ services:
       - GUNICORN_CMD_ARGS=--reload
     volumes:
       - ./:/app
-      - images:/app/src/images
     ports:
       - ${PORT}:${PORT}
-
-volumes:
-  images:
-    external:
-      name: photoanalysisserver_images
