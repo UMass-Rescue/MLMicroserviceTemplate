@@ -1,4 +1,5 @@
 from PIL import Image
+from fastapi import File, UploadFile
 import time
 
 
@@ -12,14 +13,14 @@ def init():
     time.sleep(1)
 
 
-def predict(image_file):
+def predict(image_file: UploadFile = File(...)):
     """
     Interface method between model and server. This signature must not be
     changed and your model must be able to predict given a file-like object
     with the image as an input.
     """
 
-    image = Image.open(image_file.name, mode='r')
+    image = Image.open(image_file.file)
 
     return {
         'classes': ['isGreen', 'isRed'],  # List every class in the classifier

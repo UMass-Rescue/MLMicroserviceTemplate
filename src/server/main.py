@@ -1,6 +1,6 @@
 import time
 
-from fastapi import FastAPI, HTTPException, status, Request
+from fastapi import File, UploadFile, FastAPI, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 import logging
@@ -117,7 +117,7 @@ async def check_status():
 
 
 @app.post("/predict")
-async def create_prediction(filename: str = ""):
+async def create_prediction(image_file: UploadFile = File(...)):
     """
     Creates a new prediction using the model. This method must be called after the init() method has run
     at least once, otherwise this will fail with a HTTP Error. When given a filename, the server will create a
@@ -130,20 +130,6 @@ async def create_prediction(filename: str = ""):
     # Ensure model is ready to receive prediction requests
     if not model_settings.ready_to_predict:
         raise PredictionException()
-
-    # Attempt to open image file
-    try:
-        image_file = open('src/images/' + filename, 'r')
-        image_file.close()
-    except IOError:
-        logger.debug('Unable to open file: ' + filename)
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={
-                "status": 'failure',
-                "detail": "Invalid file name provided: [" + filename + "]. Unable to find image on server."
-            }
-        )
 
     # Create prediction with model
     result = predict(image_file)

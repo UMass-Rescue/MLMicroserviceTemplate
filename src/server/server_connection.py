@@ -19,7 +19,7 @@ def register_model_to_server(server_port, model_port, model_name):
             }
             r = requests.post('http://host.docker.internal:' + str(server_port) + '/model/register',
                               headers=headers,
-                              json={"name": model_name, "port": model_port})
+                              json={"name": model_name, "socket": "http://host.docker.internal:" + str(model_port)})
             r.raise_for_status()
             dependency.connected = True
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError):
