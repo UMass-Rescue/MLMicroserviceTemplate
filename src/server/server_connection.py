@@ -7,7 +7,7 @@ from secrets import API_KEY
 from src.server import dependency
 
 
-def register_model_to_server(server_port, model_port, model_name):
+def register_model_to_server(server_port, model_port, model_name, model_tags):
     """
     Send notification to the server with the model name and port to register the microservice
     It retries until a connection with the server is established
@@ -19,7 +19,7 @@ def register_model_to_server(server_port, model_port, model_name):
             }
             r = requests.post('http://host.docker.internal:' + str(server_port) + '/model/register',
                               headers=headers,
-                              json={"name": model_name, "port": model_port})
+                              json={"name": model_name, "port": model_port, "model_tags": model_tags})
             r.raise_for_status()
             dependency.connected = True
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError):

@@ -79,7 +79,7 @@ def initial_startup():
         init()
         model_settings.ready_to_predict = True
         logger.debug('Finishing Model Initialization Process.')
-        pool.submit(register_model_to_server, os.getenv('SERVER_PORT'), os.getenv('PORT'), os.getenv('NAME'))
+        pool.submit(register_model_to_server, os.getenv('SERVER_PORT'), os.getenv('PORT'), os.getenv('NAME'), os.getenv("MODEL_TAGS"))
 
     pool.submit(init_model_helper)
     return {"status": "success", 'detail': 'server startup in progress'}
