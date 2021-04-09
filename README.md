@@ -1,5 +1,12 @@
 # MLMicroserviceTemplate
 
+# Important Notice! Read before continuing.
+
+## This repository is outdated and archived. To create a model template, please see the new UniversalModelTemplate repository.
+
+## [Link to new repository](https://github.com/UMass-Rescue/UniversalModelTemplate)
+
+
 ## Overview
 
 This is a template application for developing a machine learning model and serving the
